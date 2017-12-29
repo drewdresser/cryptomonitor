@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion : '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A stack to store and alert user about crypto currencies.
+
+Parameters:
+  PhoneNumber:
+    Type: String
+    Description: The phone number recipient of the coin alert, in E.164 (e.g. +15555550100) format.
+    Default: 0
+  PctChangeCutoff:
+    Type: Number
+    Description: The percent change of a coin for which you would like to get an SMS alert for.
+    Default: 5
+  CoinList:
+    Type: String
+    Default: BTC,ETH
+    Description: The list of coins to be alerted about, separated by commas and no spaces (e.g. "BTC,ETH,LTC").
+
+Resources:
+  Alert:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: alert.lambda_handler
+      Runtime: python3.6
+      Timeout: 60
+      CodeUri: .
+      Environment:
+        Variables:
+          PHONE_NUMBER: !Ref PhoneNumber
+          COIN_LIST: !Ref CoinList
+          SNS_TOPIC: !Ref SNSTopic
+          TABLE_NAME: !Ref DynamoDBTable
+          PCT_CHANGE_CUTOFF: !Ref PctChangeCutoff
+      Events:
+        Timer:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt SNSTopic.TopicName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoDBTable
+
+  CollectPrices:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: collect.lambda_handler
+      Runtime: python3.6
+      Timeout: 60
+      CodeUri: .
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DynamoDBTable
+      Events:
+        Timer:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoDBTable
+
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: CryptoAlert
+      Subscription:
+        -
+          Endpoint: !Ref PhoneNumber
+          Protocol: "sms"
+
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: CoinId
+          AttributeType: S
+        -
+          AttributeName: TimeStamp
+          AttributeType: N
+      KeySchema:
+        -
+          AttributeName: CoinId
+          KeyType: HASH
+        -
+          AttributeName: TimeStamp
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5

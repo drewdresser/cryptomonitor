@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: A stack to store and alert user about crypto currencies.
+Parameters:
+  CoinList:
+    Default: BTC,ETH
+    Description: The list of coins to be alerted about, separated by commas and no
+      spaces (e.g. "BTC,ETH,LTC").
+    Type: String
+  PctChangeCutoff:
+    Default: 5
+    Description: The percent change of a coin for which you would like to get an SMS
+      alert for.
+    Type: Number
+  PhoneNumber:
+    Default: 0
+    Description: The phone number recipient of the coin alert, in E.164 (e.g. +15555550100)
+      format.
+    Type: String
+Resources:
+  Alert:
+    Properties:
+      CodeUri: s3://my-general-bucket-drew/6bd5cd3ba185f3a70eb2c571b94fa5d2
+      Environment:
+        Variables:
+          COIN_LIST:
+            Ref: CoinList
+          PCT_CHANGE_CUTOFF:
+            Ref: PctChangeCutoff
+          PHONE_NUMBER:
+            Ref: PhoneNumber
+          SNS_TOPIC:
+            Ref: SNSTopic
+          TABLE_NAME:
+            Ref: DynamoDBTable
+      Events:
+        Timer:
+          Properties:
+            Schedule: rate(5 minutes)
+          Type: Schedule
+      Handler: alert.lambda_handler
+      Policies:
+      - SNSPublishMessagePolicy:
+          TopicName:
+            Fn::GetAtt:
+            - SNSTopic
+            - TopicName
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: DynamoDBTable
+      Runtime: python3.6
+      Timeout: 60
+    Type: AWS::Serverless::Function
+  CollectPrices:
+    Properties:
+      CodeUri: s3://my-general-bucket-drew/6bd5cd3ba185f3a70eb2c571b94fa5d2
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: DynamoDBTable
+      Events:
+        Timer:
+          Properties:
+            Schedule: rate(5 minutes)
+          Type: Schedule
+      Handler: collect.lambda_handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: DynamoDBTable
+      Runtime: python3.6
+      Timeout: 60
+    Type: AWS::Serverless::Function
+  DynamoDBTable:
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: CoinId
+        AttributeType: S
+      - AttributeName: TimeStamp
+        AttributeType: N
+      KeySchema:
+      - AttributeName: CoinId
+        KeyType: HASH
+      - AttributeName: TimeStamp
+        KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    Type: AWS::DynamoDB::Table
+  SNSTopic:
+    Properties:
+      DisplayName: CryptoAlert
+      Subscription:
+      - Endpoint:
+          Ref: PhoneNumber
+        Protocol: sms
+    Type: AWS::SNS::Topic
+Transform: AWS::Serverless-2016-10-31
