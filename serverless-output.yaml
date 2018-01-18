@@ -19,7 +19,7 @@ Parameters:
 Resources:
   Alert:
     Properties:
-      CodeUri: s3://my-general-bucket-drew/6bd5cd3ba185f3a70eb2c571b94fa5d2
+      CodeUri: s3://my-test-bucket-drew/76b007ab8c02f74e216615f263d537ce
       Environment:
         Variables:
           COIN_LIST:
@@ -52,7 +52,7 @@ Resources:
     Type: AWS::Serverless::Function
   CollectPrices:
     Properties:
-      CodeUri: s3://my-general-bucket-drew/6bd5cd3ba185f3a70eb2c571b94fa5d2
+      CodeUri: s3://my-test-bucket-drew/76b007ab8c02f74e216615f263d537ce
       Environment:
         Variables:
           TABLE_NAME:

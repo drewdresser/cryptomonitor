@@ -23,7 +23,6 @@ Resources:
       Handler: alert.lambda_handler
       Runtime: python3.6
       Timeout: 60
-      CodeUri: .
       Environment:
         Variables:
           PHONE_NUMBER: !Ref PhoneNumber
@@ -48,7 +47,6 @@ Resources:
       Handler: collect.lambda_handler
       Runtime: python3.6
       Timeout: 60
-      CodeUri: .
       Environment:
         Variables:
           TABLE_NAME: !Ref DynamoDBTable
